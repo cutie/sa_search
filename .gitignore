@@ -1,0 +1,4 @@
+.idea
+docs/
+spider/config.py
+./docker-compose.yml

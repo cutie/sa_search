@@ -1,0 +1,6 @@
+rx
+pyquery
+requests
+sanic
+elasticsearch
+elasticsearch_dsl

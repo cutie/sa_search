@@ -1,0 +1,44 @@
+version: '2.2'
+services:
+  webui:
+    build:
+      context: webui
+    volumes:
+      - ./webui/:/usr/src/app
+    working_dir:
+      /usr/src/app
+    command: sh run.sh
+    ports:
+      - "8000:8000"
+    networks:
+      - esnet
+  spider:
+    build:
+      context: spider
+    volumes:
+      - ./spider/:/usr/src/app
+    working_dir:
+      /usr/src/app
+    command: sh run.sh
+    networks:
+      - esnet
+    environment:
+      - sa_user=INSERT USER W/ ARCHIVES HERE
+      - sa_pass=INSERT PASSWORD HERE
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.3.0
+    environment:
+      - cluster.name=docker-cluster
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms2048m -Xmx2048m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - ./data/:/usr/share/elasticsearch/data
+    networks:
+      - esnet
+
+networks:
+  esnet:
