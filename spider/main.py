@@ -1,4 +1,3 @@
-import random
 from rx import Observable
 from rx.core import Scheduler
 from rx.concurrency import ThreadPoolScheduler
@@ -6,13 +5,10 @@ import re
 import requests
 from datetime import datetime
 from pyquery import PyQuery as pq
-from config import USERNAME, PASSWORD
-from config import DB_HOST, DB_PORT
-from config import FORUM_IDS, YEARS, FORUM_URL
+from config import USERNAME, PASSWORD, DB_HOST, DB_PORT, FORUM_IDS, YEARS, FORUM_URL
 from entities import Post, User, Forum, Thread
-
-from elasticsearch_dsl import connections
-connections.create_connection(hosts=[f"{DB_HOST}:{DB_PORT}"], timeout=60)
+from elasticsearch import Elasticsearch
+es = Elasticsearch([f"http://{DB_HOST}:{DB_PORT}"], timeout=60)
 
 """
 goals: 
@@ -30,7 +26,7 @@ threadid:4987552 quoting:Lowtax username:"Toxic Dude" tree
 
 def init():
   try:
-    Post.init("saforums")
+    Post.init("posts")
   except Exception as e:
     print(e)
 
@@ -38,7 +34,11 @@ def get_page_number(html) -> int:
   d = pq(html)
   pages = d.find(".pages a[title=\"Last page\"]").text()
   pages = re.match("(\d+)", pages)
-  return int(pages.group(1)) if pages else 1
+  i = int(pages.group(1)) if pages else 1
+  if i == 1:
+    with open("log.html", "w") as f:
+      f.write(html)
+  return i
 
 user_cache = {}
 def handle_posts(html, t_id):
@@ -60,29 +60,37 @@ def handle_posts(html, t_id):
 
 def run():
   s = requests.Session()
-  s.post(f"{FORUM_URL}/account.php", data={
+  print(f"Using: {USERNAME} {PASSWORD}")
+  r = s.post(f"{FORUM_URL}/account.php", data={
     "action": "login",
     "next": "/",
-    "password": PASSWORD,
     "username": USERNAME,
+    "password": PASSWORD
   })
-
-  init()
-
+  if "TEMPORARY LOCKOUT!" in r.text:
+    print("Too many wrong logins...")
+    exit(0)
+  elif """<div id="notregistered">""" in r.text:
+    print("Login failed")
+    exit(0)
+  #init()
   threads = []
   c = 0
   for f_id in FORUM_IDS.keys():
-    for year in range(2017,2019):
+    for year in YEARS:
       url = f"{FORUM_URL}/forumdisplay.php?forumid={f_id}"
       if year == 2018:
         resp = s.post(url, data={"rem": "Remove", "ac_year": year, "ac_day": "", "ac_month": ""})
       else:
         resp = s.post(url, data={"set": "GO", "ac_year": year, "ac_day": "", "ac_month": ""})
       #reset
+      if """<div id="notregistered">""" in resp.text:
+        print("Login failed")
+        exit(0)
       s.post(url, data={"rem": "Remove", "ac_year": year, "ac_day": "", "ac_month": ""})
       pages = get_page_number(resp.text)
       print(f"Forum ID {f_id} in {year} has {pages} pages")
-      for page_num in range(1,10):
+      for page_num in range(1, pages):
         print(f"Forum: {f_id} | Page {page_num}/{pages}")
         url = f"{FORUM_URL}/forumdisplay.php?forumid={f_id}&pagenumber={page_num}"
         resp = s.post(url, data={"ac_year": year})
@@ -91,7 +99,7 @@ def run():
           t_id = int(re.search("threadid=(\d+)", h.get("href")).group(1))
           c += 1
           threads += [(c, f_id, t_id)]
-  scheduler = ThreadPoolScheduler(25)
+  scheduler = ThreadPoolScheduler(8)
   def work(x):
     i, f_id_, t_id_ = x
     resp_ = s.get(f"{FORUM_URL}/showthread.php?threadid={t_id_}")
@@ -117,8 +125,6 @@ def run():
   printthread("\nAll done")
   scheduler.executor.shutdown()
 
-
 if __name__ == '__main__':
-  #print("Pretending to run Spider")
-  #print(USERNAME, PASSWORD)
+  print("Starting spider...")
   run()

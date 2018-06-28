@@ -1,6 +1,10 @@
+from config import DB_HOST, DB_PORT
 from pyquery import PyQuery as pq
 from elasticsearch_dsl import DocType, Date, Nested, Boolean, \
     analyzer, Keyword, Text, Integer
+
+from elasticsearch_dsl import connections
+connections.create_connection(hosts=[f"{DB_HOST}"])
 
 html_strip = analyzer('html_strip',
     tokenizer="standard",
