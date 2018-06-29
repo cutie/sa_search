@@ -4,7 +4,7 @@ from elasticsearch_dsl import DocType, Date, Nested, Boolean, \
     analyzer, Keyword, Text, Integer
 
 from elasticsearch_dsl import connections
-connections.create_connection(hosts=[f"{DB_HOST}"])
+connections.create_connection(hosts=[f"{DB_HOST}:{DB_PORT}"])
 
 html_strip = analyzer('html_strip',
     tokenizer="standard",

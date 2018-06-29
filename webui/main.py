@@ -10,14 +10,12 @@ app = Sanic()
 app.static('/', './frontend/build')
 
 #todo: most quoted posts
-
+#todo: smilies from http://sae.tweek.us/
 
 @app.route("/")
 async def index(request):
   return await file('frontend/build/index.html')
 
-# @app.route('/')
-# async def search(_):
 
 @app.route('/count')
 async def search(request):
@@ -44,14 +42,11 @@ async def search(request):
   resp = s.execute()
   z = []
   for hit in resp:
-    d = pq(hit.post_body)
-    t = d.text()
-    t = t.replace("\n", "<br/>")
     z += [{
       "post_id": hit.meta.id,
       "user_id": hit.user_id,
       "post_date": hit.post_date,
-      "post_body": t,
+      "post_body": hit.post_body,
     }]
   return json({"response": z})
 
